@@ -1,22 +1,7 @@
-# Import the usual modules
-import numpy as np
 import matplotlib.pyplot as plt
-from ripser import ripser
-import persim
-import networkx as nx
-from sklearn import manifold
-
-from DMT_tools import *
 from DMT_tools.example_generating_functions import *
-
-import ot
-
-import time
-
 import warnings
-
 from DMT_tools.utils import MergeTree
-
 warnings.filterwarnings("ignore")
 
 # Import the gtda modules
@@ -116,17 +101,17 @@ for i in range(num_bars):
     node_labels[i] = labels
 
 plt.figure(figsize = (7,5))
-plt.plot(xs,signal, c = 'black', alpha = 0.25)
+plt.plot(xs,signal, c = 'black', alpha = 0.25, label = 'Decorated Merge Tree')
 
 idx = [i for i in node_labels[0] if densities[i] > cutoff]
 x_vals = xs[idx]
 y_vals = signal[idx]
 
-plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'g', s = 10)
+plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'g', s = 10, label = 'Original')
 
 idx = [i for i in node_labels[1] if densities[i] > cutoff]
 x_vals = xs[idx]
 y_vals = signal[idx]
 
-plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'b', s = 10)
+plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'b', s = 10, label = 'Invariant')
 plt.show()

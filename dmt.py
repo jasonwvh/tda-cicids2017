@@ -1,56 +1,102 @@
-import gudhi as gd
 import numpy as np
 import pandas as pd
 from gtda.time_series import SingleTakensEmbedding
 from matplotlib import pyplot as plt
-from sklearn.decomposition import PCA
-from sklearn.metrics import euclidean_distances
-
+import matplotlib.dates as mdates
 from DMT_tools.utils import MergeTree
-from eulearning.datasets import gen_dense_lines_with_noise
-from eulearning.utils import vectorize_st, codensity
-from eulearning.descriptors import EulerCharacteristicProfile
 from helpers import load_and_prep_data
 
 df = load_and_prep_data()
 df['Timestamp'] = pd.to_datetime(df[' Timestamp'])
-df.sort_values('Timestamp', inplace=True)
 df.set_index('Timestamp', inplace=True)
 
-resampled_data = df.resample('60s').agg(
+resampled_data = df.resample('30s').agg(
     flow_count=(' Timestamp', 'size'),
     segment_label=(' Label', 'sum')
 )
 
 time_series = resampled_data['flow_count']
-te = SingleTakensEmbedding('fixed', 1, 2)
-embedding = te.fit_transform(time_series)
 
-pca = PCA(n_components = 2)
-pca_coords = pca.fit_transform(embedding)
+window_size = 4
+smoothed_time_series = time_series.rolling(window=window_size).mean()
 
-# plt.scatter(pca_coords[:,0],pca_coords[:,1])
-# plt.title('PCA projection of embedded point cloud')
+plt.figure(figsize=(12, 6))
+plt.plot(time_series.index, time_series.values, color='b', linewidth=1, alpha=0.5, label='Original')
+plt.plot(smoothed_time_series.index, smoothed_time_series.values, color='g', linewidth=2, label=f'Smoothed (Window={window_size})')
+
+attack_points = resampled_data[resampled_data['segment_label'] > 0]
+plt.scatter(attack_points.index, attack_points['flow_count'], color='r', s=10, zorder=5, label='Attack Segment')
+
+ax = plt.gca()
+date_form = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+ax.xaxis.set_major_formatter(date_form)
+ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+
+plt.xlabel('Time')
+plt.ylabel('Number of Flows')
+plt.title('Time Series: Network Flows (Original and Smoothed)')
+plt.grid(True)
+plt.xticks(rotation=45)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+smoothed_time_series = smoothed_time_series.dropna()
+
+# te = SingleTakensEmbedding('fixed', 7, 2)
+# embedding = te.fit_transform(smoothed_time_series)
+# fig = plt.figure(figsize=(10, 8))
+# ax = fig.add_subplot(111)
+# ax.plot(embedding[:, 0], embedding[:, 1], c='b', alpha=0.5)
+# ax.set_xlabel('x(t)')
+# ax.set_ylabel('x(t-τ)')
+# ax.set_title("Takens' Embedding (2D)")
 # plt.show()
 
-# Get a density score for each point
-DistMat = euclidean_distances(embedding)
-mean_dist = np.mean(DistMat)
-densities = [sum(DistMat[j,:] < mean_dist/5) for j in range(embedding.shape[0])]
+te = SingleTakensEmbedding('search', 2, 3)
+embedding = te.fit_transform(smoothed_time_series)
+fig = plt.figure(figsize=(10, 8))
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(embedding[:, 0], embedding[:, 1], embedding[:, 2], c='b', alpha=0.5)
+ax.set_xlabel('x(t)')
+ax.set_ylabel('x(t-τ)')
+ax.set_zlabel('x(t-2τ)')
+ax.set_title("Takens' Embedding (3D)")
+plt.show()
 
-# Subsample by density
+# ---
+xs = smoothed_time_series.index
+signal = smoothed_time_series.values
+embedded_signal = embedding
+
+from sklearn.decomposition import PCA
+
+pca = PCA(n_components = 2)
+pca_coords = pca.fit_transform(embedded_signal)
+
+plt.scatter(pca_coords[:,0],pca_coords[:,1])
+plt.title('PCA projection of embedded point cloud')
+plt.show()
+
+
+from sklearn.metrics import euclidean_distances
+
+DistMat = euclidean_distances(embedded_signal)
+mean_dist = np.mean(DistMat)
+densities = [sum(DistMat[j,:] < mean_dist/5) for j in range(embedded_signal.shape[0])]
+
 total_points = 180
 cutoff = np.sort(densities)[::-1][total_points]
 # idx = np.argsort(densities)[-total_points:]
-embedding_subsampled = embedding[densities >= cutoff,:]
+embedded_signal_subsampled = embedded_signal[densities >= cutoff,:]
 
-pca_coords = pca.fit_transform(embedding_subsampled)
+pca_coords = pca.fit_transform(embedded_signal_subsampled)
 
-# plt.scatter(pca_coords[:,0],pca_coords[:,1],c = list(range(len(pca_coords))))
-# plt.title('PCA projection of embedded point cloud, \n subsampled by density')
-# plt.show()
+plt.scatter(pca_coords[:,0],pca_coords[:,1],c = list(range(len(pca_coords))))
+plt.title('PCA projection of embedded point cloud, \n subsampled by density')
+plt.show()
 
-MT = MergeTree(pointCloud = embedding_subsampled)
+MT = MergeTree(pointCloud = embedded_signal_subsampled)
 MT.fit_barcode(degree=1)
 
 tree_thresh = 0.1
@@ -59,6 +105,7 @@ barcode_thresh = 0.1
 MT.draw_decorated(tree_thresh,barcode_thresh)
 
 num_bars = 2
+
 node_labels = {}
 
 barcode = MT.barcode
@@ -68,6 +115,7 @@ barcode_idx_sorted_by_length = np.argsort(barcode_lengths)[::-1]
 leaf_barcode = MT.leaf_barcode
 
 for i in range(num_bars):
+
     labels = []
 
     idx = barcode_idx_sorted_by_length[i]
@@ -79,16 +127,28 @@ for i in range(num_bars):
 
     node_labels[i] = labels
 
-xs = time_series.index
+plt.figure(figsize = (7,5))
+plt.plot(xs,signal, c = 'black', alpha = 0.25)
+
 idx = [i for i in node_labels[0] if densities[i] > cutoff]
 x_vals = xs[idx]
-y_vals = embedding[idx]
-
-plt.scatter(xs[sorted(idx)],time_series[sorted(idx)], c = 'g', s = 10)
+y_vals = signal[idx]
+plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'g', s = 10, label='Original')
 
 idx = [i for i in node_labels[1] if densities[i] > cutoff]
-x_vals = xs[idx]
-y_vals = embedding[idx]
+plt.scatter(xs[sorted(idx)],signal[sorted(idx)], c = 'b', s = 10, label='Invariant')
 
-plt.scatter(xs[sorted(idx)],time_series[sorted(idx)], c = 'b', s = 10)
+plt.scatter(attack_points.index, attack_points['flow_count'], color='r', s=10, zorder=5, label='Attacks')
+
+ax = plt.gca()
+date_form = mdates.DateFormatter('%Y-%m-%d %H:%M:%S')
+ax.xaxis.set_major_formatter(date_form)
+ax.xaxis.set_major_locator(mdates.AutoDateLocator())
+
+plt.xlabel('Time')
+plt.ylabel('Number of Flows')
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.xticks(rotation=45)
 plt.show()

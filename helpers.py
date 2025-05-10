@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 
 def load_and_prep_data():
     columns_to_keep = [
