@@ -15,25 +15,25 @@ ac = gd.AlphaComplex(X)			# Initialize the alpha complex
 st = ac.create_simplex_tree() 		# Compute the alpha filtration
 vec_st = vectorize_st(st)		# Vectorize the simplex tree
 
-# from eulearning.descriptors import EulerCharacteristicProfile
-#
-# # Choose your method to compute Euler characteristic curves
-# ## e.g. using quantiles
-# euler_curve = EulerCharacteristicProfile(resolution=(200,), quantiles=[(0, 0.95)], pt_cld=True, normalize=False)
-#
-# ## e.g. using specified bounds
-# # euler_curve = EulerCharacteristicProfile(resolution=(200,), val_ranges=[(0, 35)], pt_cld=True, normalize=False)
-#
-# # Compute Euler curves
-# ecc = euler_curve.fit_transform(vec_st)
-#
-# # Plot Euler curves
-# ecc_range = np.linspace(euler_curve.val_ranges[0][0], euler_curve.val_ranges[0][1], euler_curve.resolution[0])
-# plt.figure()
-# plt.plot(ecc_range, ecc)
-# plt.title('Euler characteristic curve')
-# plt.show()
-#
+from eulearning.descriptors import EulerCharacteristicProfile
+
+# Choose your method to compute Euler characteristic curves
+## e.g. using quantiles
+euler_curve = EulerCharacteristicProfile(resolution=(200,), quantiles=[(0, 0.95)], pt_cld=True, normalize=False)
+
+## e.g. using specified bounds
+# euler_curve = EulerCharacteristicProfile(resolution=(200,), val_ranges=[(0, 35)], pt_cld=True, normalize=False)
+
+# Compute Euler curves
+ecc = euler_curve.fit_transform(vec_st)
+
+# Plot Euler curves
+ecc_range = np.linspace(euler_curve.val_ranges[0][0], euler_curve.val_ranges[0][1], euler_curve.resolution[0])
+plt.figure()
+plt.plot(ecc_range, ecc)
+plt.title('Euler characteristic curve')
+plt.show()
+
 # from eulearning.descriptors import HybridTransform
 #
 # # Choose your method to compute hybrid transform

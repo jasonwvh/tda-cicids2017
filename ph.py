@@ -15,7 +15,6 @@ def load_and_prep_data():
     ]
 
     df = pd.read_csv("Thursday-WorkingHours-Morning-WebAttacks.pcap_ISCX.csv", encoding='ISO-8859-1', usecols=columns_to_keep, low_memory=False)
-    df.columns = df.columns.str.strip()
 
     df.replace('Infinity', -1, inplace=True)
     df[" Source IP"] = df[" Source IP"].apply(lambda x: float(str(x).replace(".", "")))

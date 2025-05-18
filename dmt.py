@@ -1,10 +1,14 @@
 import numpy as np
 import pandas as pd
+import umap
 from gtda.time_series import SingleTakensEmbedding
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import euclidean_distances
 from DMT_tools.utils import MergeTree
 from helpers import load_and_prep_data
+from sklearn.decomposition import PCA
 
 df = load_and_prep_data()
 df['Timestamp'] = pd.to_datetime(df[' Timestamp'])
@@ -69,17 +73,19 @@ xs = smoothed_time_series.index
 signal = smoothed_time_series.values
 embedded_signal = embedding
 
-from sklearn.decomposition import PCA
+#---
+aligned_labels_full = resampled_data['segment_label'].loc[smoothed_time_series.index]
 
-pca = PCA(n_components = 2)
-pca_coords = pca.fit_transform(embedded_signal)
+d = 10
+tau = 3
 
-plt.scatter(pca_coords[:,0],pca_coords[:,1])
-plt.title('PCA projection of embedded point cloud')
-plt.show()
+te = SingleTakensEmbedding('fixed', tau, d)
+embedding = te.fit_transform(smoothed_time_series.values.reshape(-1, 1))
+offset = (d - 1) * tau
+colors = (aligned_labels_full.iloc[offset:] > 0).astype(int)
 
-
-from sklearn.metrics import euclidean_distances
+reducer = umap.UMAP(random_state=42)
+scaled_time_series = StandardScaler().fit_transform(embedding)
 
 DistMat = euclidean_distances(embedded_signal)
 mean_dist = np.mean(DistMat)
@@ -90,11 +96,36 @@ cutoff = np.sort(densities)[::-1][total_points]
 # idx = np.argsort(densities)[-total_points:]
 embedded_signal_subsampled = embedded_signal[densities >= cutoff,:]
 
-pca_coords = pca.fit_transform(embedded_signal_subsampled)
+umap_coords = reducer.fit_transform(embedded_signal_subsampled)
 
-plt.scatter(pca_coords[:,0],pca_coords[:,1],c = list(range(len(pca_coords))))
-plt.title('PCA projection of embedded point cloud, \n subsampled by density')
+plt.scatter(umap_coords[:,0],umap_coords[:,1],c = list(range(len(umap_coords))))
+plt.title('UMAP projection of embedded point cloud, \n subsampled by density')
 plt.show()
+
+# ---
+# pca = PCA(n_components = 2)
+# pca_coords = pca.fit_transform(embedded_signal)
+#
+# plt.scatter(pca_coords[:,0],pca_coords[:,1])
+# plt.title('PCA projection of embedded point cloud')
+# plt.show()
+#
+# DistMat = euclidean_distances(embedded_signal)
+# mean_dist = np.mean(DistMat)
+# densities = [sum(DistMat[j,:] < mean_dist/5) for j in range(embedded_signal.shape[0])]
+#
+# total_points = 180
+# cutoff = np.sort(densities)[::-1][total_points]
+# # idx = np.argsort(densities)[-total_points:]
+# embedded_signal_subsampled = embedded_signal[densities >= cutoff,:]
+#
+# pca_coords = pca.fit_transform(embedded_signal_subsampled)
+#
+# plt.scatter(pca_coords[:,0],pca_coords[:,1],c = list(range(len(pca_coords))))
+# plt.title('PCA projection of embedded point cloud, \n subsampled by density')
+# plt.show()
+
+#---
 
 MT = MergeTree(pointCloud = embedded_signal_subsampled)
 MT.fit_barcode(degree=1)

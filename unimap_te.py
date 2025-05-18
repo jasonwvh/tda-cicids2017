@@ -20,26 +20,40 @@ time_series = resampled_data['flow_count']
 
 window_size = 3
 smoothed_time_series = time_series.rolling(window=window_size).mean().dropna()
+aligned_labels_full = resampled_data['segment_label'].loc[smoothed_time_series.index]
 
 d = 10
 tau = 3
 
 te = SingleTakensEmbedding('fixed', tau, d)
-embedding = te.fit_transform(smoothed_time_series)
+embedding = te.fit_transform(smoothed_time_series.values.reshape(-1, 1))
+offset = (d - 1) * tau
+colors = (aligned_labels_full.iloc[offset:] > 0).astype(int)
 
-reducer = umap.UMAP()
+reducer = umap.UMAP(random_state=42)
 scaled_time_series = StandardScaler().fit_transform(embedding)
 umap_embed = reducer.fit_transform(scaled_time_series)
 
-embedding_times = smoothed_time_series.index[(d - 1) * tau : (d - 1) * tau + len(embedding)]
-labels_for_embedding = resampled_data.loc[embedding_times, 'segment_label'].values
-colors = [sns.color_palette()[0] if x == 0 else sns.color_palette()[1] for x in labels_for_embedding]
-
-plt.scatter(
+plt.figure(figsize=(10, 8))
+scatter = plt.scatter(
     umap_embed[:, 0],
     umap_embed[:, 1],
-    c=colors
+    c=colors,
+    cmap='coolwarm',
+    s=10,
+    alpha=0.7
 )
-plt.gca().set_aspect('equal', 'datalim')
-plt.title('UMAP projection', fontsize=24)
+plt.title('UMAP Embedding of Time Series with Attack Labels')
+plt.xlabel('UMAP Component 1')
+plt.ylabel('UMAP Component 2')
+
+legend_elements = [
+    plt.Line2D([0], [0], marker='o', color='w', label='BENIGN',
+               markerfacecolor=plt.cm.coolwarm(0.), markersize=10),
+    plt.Line2D([0], [0], marker='o', color='w', label='ATTACK',
+               markerfacecolor=plt.cm.coolwarm(1.), markersize=10)
+]
+plt.legend(handles=legend_elements, title='Label')
+plt.colorbar(scatter, ticks=[0, 1], label='Label (0: BENIGN, 1: ATTACK)')
+plt.grid(True, linestyle='--', alpha=0.6)
 plt.show()

@@ -1,4 +1,5 @@
 import gudhi as gd
+import numpy as np
 import pandas as pd
 from gtda.time_series import SingleTakensEmbedding
 from matplotlib import pyplot as plt
@@ -58,6 +59,15 @@ ac = gd.AlphaComplex(embedding)
 st = ac.create_simplex_tree()
 vec_st = vectorize_st(st)
 
+from eulearning.descriptors import EulerCharacteristicProfile
+euler_curve = EulerCharacteristicProfile(resolution=(200,), val_ranges=[(0, 35)], pt_cld=True, normalize=False)
+ecc = euler_curve.fit_transform(vec_st)
+ecc_range = np.linspace(euler_curve.val_ranges[0][0], euler_curve.val_ranges[0][1], euler_curve.resolution[0])
+plt.figure()
+plt.plot(ecc_range, ecc)
+plt.title('Euler characteristic curve')
+plt.show()
+
 embedding_ = te.fit_transform(smoothed_time_series)
 codensity_filt = codensity(embedding_)
 vec_st2 = vectorize_st(st, filtrations=[codensity_filt])
@@ -65,7 +75,7 @@ vec_st2 = vectorize_st(st, filtrations=[codensity_filt])
 plt.figure()
 plt.scatter(embedding[:,0], embedding[:,1], c=codensity_filt)
 plt.colorbar()
-plt.title('m-parameter filtration')
+plt.title('2-parameter filtration')
 plt.show()
 
 from eulearning.descriptors import EulerCharacteristicProfile
