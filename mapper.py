@@ -41,7 +41,7 @@ def load_and_prep_data():
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
     df[numeric_columns] = df[numeric_columns].fillna(0)
 
-    label_map = {"BENIGN": 0, "Web Attack  Brute Force": 11, "Web Attack  XSS": 12, "Web Attack  Sql Injection": 13}
+    label_map = {"BENIGN": 0, "Web Attack ï¿½ Brute Force": 11, "Web Attack ï¿½ XSS": 12, "Web Attack ï¿½ Sql Injection": 13}
     df["Label"] = df["Label"].map(label_map)
 
     df['Timestamp'] = pd.to_datetime(df['Timestamp'])

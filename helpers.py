@@ -16,5 +16,5 @@ def load_and_prep_data():
     df[" Destination IP"] = df[" Destination IP"].apply(lambda x: float(str(x).replace(".", "")))
     df = df.dropna()
 
-    df[" Label"] = df[" Label"].map({"BENIGN": 0, "Web Attack  Brute Force": 1, "Web Attack  XSS": 1, "Web Attack  Sql Injection": 1})
+    df[" Label"] = df[" Label"].map({"BENIGN": 0, "Web Attack ï¿½ Brute Force": 1, "Web Attack ï¿½ XSS": 1, "Web Attack ï¿½ Sql Injection": 1})
     return df

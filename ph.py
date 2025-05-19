@@ -1,4 +1,4 @@
-import kmapper as km
+# import kmapper as km
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ import umap
 from gtda.diagrams import PersistenceLandscape
 from gtda.homology import VietorisRipsPersistence, WeakAlphaPersistence, EuclideanCechPersistence, SparseRipsPersistence
 from gtda.time_series import SingleTakensEmbedding, TakensEmbedding, SlidingWindow
-from kmapper import Cover
+# from kmapper import Cover
 from numpy.ma.core import equal
 from scipy.stats import mode
 from sklearn import ensemble, cluster
@@ -42,7 +42,7 @@ def load_and_prep_data():
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
     df[numeric_columns] = df[numeric_columns].fillna(0)
 
-    label_map = {"BENIGN": 0, "Web Attack  Brute Force": 11, "Web Attack  XSS": 12, "Web Attack  Sql Injection": 13}
+    label_map = {"BENIGN": 0, "Web Attack ï¿½ Brute Force": 11, "Web Attack ï¿½ XSS": 12, "Web Attack ï¿½ Sql Injection": 13}
     df["Label"] = df["Label"].map(label_map)
 
     df['Timestamp'] = pd.to_datetime(df['Timestamp'])
@@ -59,7 +59,7 @@ def safe_sum(x):
 
 resampled_data = df.resample('60s').agg(
     flow_count=('Source IP', 'size'),
-    flow_duration=('Flow Duration', safe_mean),
+    flow_duration=('Flow Duration', safe_sum),
     flow_bytes=('Flow Bytes/s', safe_sum),
     flow_packets=('Flow Packets/s', safe_sum),
     flow_mean=('Flow IAT Mean', safe_mean),
@@ -71,105 +71,115 @@ resampled_data = df.resample('60s').agg(
 )
 
 ## no separate
-features = ['flow_duration', 'flow_mean', 'fwd_mean', 'bwd_mean', 'active_mean', 'idle_mean']
-featured_df = resampled_data[features]
-dim = featured_df.columns.size
+# features = ['flow_duration', 'flow_mean', 'fwd_mean', 'bwd_mean', 'active_mean', 'idle_mean']
+# featured_df = resampled_data[features]
+# dim = featured_df.columns.size
 
-scaler = RobustScaler()
-df_scaled = scaler.fit_transform(featured_df)
-#
-# umap_reducer = umap.UMAP(n_components=3, random_state=42)
-# pca = PCA(n_components=3)
-# df_reduced = umap_reducer.fit_transform(df_scaled)
+# scaler = RobustScaler()
+# df_scaled = scaler.fit_transform(featured_df)
+# #
+# # umap_reducer = umap.UMAP(n_components=3, random_state=42)
+# # pca = PCA(n_components=3)
+# # df_reduced = umap_reducer.fit_transform(df_scaled)
 
-te = TakensEmbedding(time_delay=1, dimension=dim)
-embedding = te.fit_transform(featured_df)
-embedding = embedding.reshape(featured_df.index.size, dim)
+# te = TakensEmbedding(time_delay=1, dimension=dim)
+# embedding = te.fit_transform(featured_df)
+# embedding = embedding.reshape(featured_df.index.size, dim)
 
-ph = VietorisRipsPersistence(homology_dimensions=[0, 1])
-embedding_reshaped = embedding[None, :, :]
-diagrams = ph.fit_transform(embedding_reshaped)[0]
+# ph = VietorisRipsPersistence(homology_dimensions=[0, 1])
+# embedding_reshaped = embedding[None, :, :]
+# diagrams = ph.fit_transform(embedding_reshaped)[0]
 
-colors = {0: 'green', 1: 'blue', 2: 'purple'}
-markers = {0: 'x', 1: 'o', 2: '^'}
-labels = {0: 'H0', 1: 'H1', 2: 'H2'}
-max_death = 0
+# colors = {0: 'green', 1: 'blue', 2: 'purple'}
+# markers = {0: 'x', 1: 'o', 2: '^'}
+# labels = {0: 'H0', 1: 'H1', 2: 'H2'}
+# max_death = 0
 
-fig = plt.subplots(figsize=(6, 6))
-for dim in [1]:
-    dgm = diagrams[diagrams[:, 2] == dim]
-    if len(dgm) > 0:
-        plt.scatter(dgm[:, 0], dgm[:, 1], c=colors[dim],
-                    label=f'{labels[dim]}', alpha=1)
-        max_death = max(max_death, max(dgm[:, 1]))
-plt.plot([0, max_death], [0, max_death], 'k--', alpha=0.5)
-plt.xlabel('Birth')
-plt.ylabel('Death')
-plt.title('Persistence Diagrams (H0, H1, H2) no separate umap/pca')
-plt.legend()
-plt.grid(True)
-plt.show()
+# fig = plt.subplots(figsize=(6, 6))
+# for dim in [1]:
+#     dgm = diagrams[diagrams[:, 2] == dim]
+#     if len(dgm) > 0:
+#         plt.scatter(dgm[:, 0], dgm[:, 1], c=colors[dim],
+#                     label=f'{labels[dim]}', alpha=1)
+#         max_death = max(max_death, max(dgm[:, 1]))
+# plt.plot([0, max_death], [0, max_death], 'k--', alpha=0.5)
+# plt.xlabel('Birth')
+# plt.ylabel('Death')
+# plt.title('Persistence Diagrams (H0, H1, H2) no separate umap/pca')
+# plt.legend()
+# plt.grid(True)
+# plt.show()
 
 
 ## Separate Benign and Attack
 features = ['flow_duration', 'flow_mean', 'fwd_mean', 'bwd_mean', 'active_mean', 'idle_mean']
 benigns = resampled_data[resampled_data['label'] == 0][features]
 attacks = resampled_data[resampled_data['label'] != 0][features]
-
-## ph on aggregated
-scaler = StandardScaler()
-benigns_scaled = scaler.fit_transform(benigns[features])
-attacks_scaled = scaler.fit_transform(attacks[features])
-
-umap_reducer = umap.UMAP(n_components=3, random_state=42)
-pca = PCA(n_components=3)
-benigns_reduced = umap_reducer.fit_transform(benigns_scaled)
-attacks_reduced = umap_reducer.fit_transform(attacks_scaled)
-
-benigns_reshaped = benigns_reduced[None, :, :]
-attacks_reshaped = attacks_reduced[None, :, :]
-
-diagrams_benigns_ori = ph.fit_transform(benigns_reshaped)
-diagrams_attacks_ori = ph.fit_transform(attacks_reshaped)
-diagrams_benigns = diagrams_benigns_ori[0]
-diagrams_attacks = diagrams_attacks_ori[0]
-
-colors_benigns = {0: 'blue', 1: 'green', 2: 'darkgreen'}
-colors_attacks = {0: 'purple', 1: 'red', 2: 'darkred'}
-markers = {0: 'x', 1: 'o', 2: '^'}
-labels = {0: 'H0', 1: 'H1', 2: 'H2'}
-max_death = 0
-for dim in [1,2]:
-    dgm = diagrams_benigns[diagrams_benigns[:, 2] == dim]
-    if len(dgm) > 0:
-        plt.scatter(dgm[:, 0], dgm[:, 1], c=colors_benigns[dim], marker=markers[dim],
-                    label=f'{labels[dim]} Benign', alpha=0.5)
-        max_death = max(max_death, max(dgm[:, 1]))
-for dim in [1,2]:
-    dgm = diagrams_attacks[diagrams_attacks[:, 2] == dim]
-    if len(dgm) > 0:
-        plt.scatter(dgm[:, 0], dgm[:, 1], c=colors_attacks[dim], marker=markers[dim],
-                    label=f'{labels[dim]} Attack', alpha=1)
-        max_death = max(max_death, max(dgm[:, 1]))
-
-plt.plot([0, max_death], [0, max_death], 'k--', alpha=0.5)
-plt.xlabel('Birth')
-plt.ylabel('Death')
-plt.title('Persistence Diagrams (H0, H1, H2) pca/umap')
-plt.legend()
-plt.grid(True)
-plt.show()
+print(benigns.shape)
+# print(attacks.shape)
+# ## ph on aggregated
+# scaler = StandardScaler()
+# benigns_scaled = scaler.fit_transform(benigns[features])
+# attacks_scaled = scaler.fit_transform(attacks[features])
+#
+# umap_reducer = umap.UMAP(n_components=3, random_state=42)
+# pca = PCA(n_components=3)
+# benigns_reduced = umap_reducer.fit_transform(benigns_scaled)
+# attacks_reduced = umap_reducer.fit_transform(attacks_scaled)
+#
+# benigns_reshaped = benigns_reduced[None, :, :]
+# attacks_reshaped = attacks_reduced[None, :, :]
+#
+# ph = VietorisRipsPersistence(homology_dimensions=[0, 1])
+# diagrams_benigns_ori = ph.fit_transform(benigns_reshaped)
+# diagrams_attacks_ori = ph.fit_transform(attacks_reshaped)
+# diagrams_benigns = diagrams_benigns_ori[0]
+# diagrams_attacks = diagrams_attacks_ori[0]
+#
+# colors_benigns = {0: 'blue', 1: 'green', 2: 'darkgreen'}
+# colors_attacks = {0: 'purple', 1: 'red', 2: 'darkred'}
+# markers = {0: 'x', 1: 'o', 2: '^'}
+# labels = {0: 'H0', 1: 'H1', 2: 'H2'}
+# max_death = 0
+# for dim in [1,2]:
+#     dgm = diagrams_benigns[diagrams_benigns[:, 2] == dim]
+#     if len(dgm) > 0:
+#         plt.scatter(dgm[:, 0], dgm[:, 1], c=colors_benigns[dim], marker=markers[dim],
+#                     label=f'{labels[dim]} Benign', alpha=0.5)
+#         max_death = max(max_death, max(dgm[:, 1]))
+# for dim in [1,2]:
+#     dgm = diagrams_attacks[diagrams_attacks[:, 2] == dim]
+#     if len(dgm) > 0:
+#         plt.scatter(dgm[:, 0], dgm[:, 1], c=colors_attacks[dim], marker=markers[dim],
+#                     label=f'{labels[dim]} Attack', alpha=1)
+#         max_death = max(max_death, max(dgm[:, 1]))
+#
+# plt.plot([0, max_death], [0, max_death], 'k--', alpha=0.5)
+# plt.xlabel('Birth')
+# plt.ylabel('Death')
+# plt.title('Persistence Diagrams (H0, H1, H2) pca/umap')
+# plt.legend()
+# plt.grid(True)
+# plt.show()
 
 # Multi dimensional Takens with separate benigns and attacks
 dim=benigns.columns.size
+
+scaler = StandardScaler()
+benigns_scaled = scaler.fit_transform(benigns)
+benigns_scaled = pd.DataFrame(benigns_scaled, index=benigns.index, columns=features)
+attacks_scaled = scaler.fit_transform(attacks)
+attacks_scaled = pd.DataFrame(attacks_scaled, index=attacks.index, columns=features)
+
 te = TakensEmbedding(time_delay=1, dimension=dim)
-embedding_benigns = te.fit_transform(benigns)
-embedding_benigns = embedding_benigns.reshape(benigns.index.size, dim)
-embedding_attacks = te.fit_transform(attacks)
-embedding_attacks = embedding_attacks.reshape(attacks.index.size, dim)
+embedding_benigns = te.fit_transform(benigns_scaled)
+embedding_benigns = embedding_benigns.reshape(benigns_scaled.index.size, dim)
+embedding_attacks = te.fit_transform(attacks_scaled)
+embedding_attacks = embedding_attacks.reshape(attacks_scaled.index.size, dim)
 
 benigns_reshaped = embedding_benigns[None, :, :]
 attacks_reshaped = embedding_attacks[None, :, :]
+ph = VietorisRipsPersistence(homology_dimensions=[0, 1])
 diagrams_benigns_ori = ph.fit_transform(benigns_reshaped)
 diagrams_attacks_ori = ph.fit_transform(attacks_reshaped)
 

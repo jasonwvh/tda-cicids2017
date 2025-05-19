@@ -44,7 +44,8 @@ def load_and_prep_data():
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
     df[numeric_columns] = df[numeric_columns].fillna(0)
 
-    label_map = {"BENIGN": 0, "Web Attack  Brute Force": 11, "Web Attack  XSS": 12, "Web Attack  Sql Injection": 13}
+    uniques = df['Label'].unique()
+    label_map = {"BENIGN": 0, "Web Attack ï¿½ Brute Force": 11, "Web Attack ï¿½ XSS": 12, "Web Attack ï¿½ Sql Injection": 13}
     df["Label"] = df["Label"].map(label_map)
 
     df['Timestamp'] = pd.to_datetime(df['Timestamp'])
@@ -82,11 +83,6 @@ scaler = StandardScaler()
 df_scaled = scaler.fit_transform(featured_df)
 df_scaled = pd.DataFrame(df_scaled, index=featured_df.index, columns=features)
 
-window_size = pd.Timedelta(seconds=900)
-step_size = pd.Timedelta(seconds=60)
-window_samples = int(window_size / pd.Timedelta(aggregation_interval))
-step_samples = int(step_size / pd.Timedelta(aggregation_interval))
-
 # te = SingleTakensEmbedding('fixed', time_delay=1, dimension=3)
 te = TakensEmbedding(time_delay=1, dimension=dim)
 ph = VietorisRipsPersistence(homology_dimensions=[0, 1])
@@ -96,8 +92,15 @@ colors = {0: 'green', 1: 'blue', 2: 'red'}
 markers = {0: 'x', 1: 'o', 2: 's'}
 labels = {0: 'H0', 1: 'H1', 2: 'H2'}
 
+
 landscape_features = []
 landscape_l2norm = []
+
+
+window_size = pd.Timedelta(seconds=900)
+step_size = pd.Timedelta(seconds=60)
+window_samples = int(window_size / pd.Timedelta(aggregation_interval))
+step_samples = int(step_size / pd.Timedelta(aggregation_interval))
 for window_idx in range(0, len(df_scaled) - window_samples + 1, step_samples):
     window_data = df_scaled.iloc[window_idx:window_idx + window_samples]
     if len(window_data) < window_samples:
